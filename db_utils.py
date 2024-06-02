@@ -63,3 +63,24 @@ def drop_table(db_name, table_name):
         cursor.execute(f'DROP TABLE IF EXISTS {table_name}')
         conn.commit()
         print(f"Table {table_name} has been dropped.")
+
+
+import pandas as pd
+import sqlite3
+
+# Step 1: Read the Excel file
+excel_file_path = r'D:\Drive Folder\FragrancesV2\fragrancePT_Cleaner\fragranceDB\scrapers\fragrances.xlsx'  # Replace with your Excel file path
+df = pd.read_excel(excel_file_path)
+
+# Step 2: Connect to the SQLite database (or create it)
+conn = sqlite3.connect('data/fragrance_database.db')  # Replace with your database file path
+
+# Step 3: Insert data into the database
+table_name = 'PerfumesDigital'  # Replace with your desired table name
+df.to_sql(table_name, conn, if_exists='replace', index=False)
+
+# Close the connection
+conn.close()
+
+print("Data has been successfully inserted into the database.")
+
