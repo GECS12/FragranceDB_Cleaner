@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fragrance Search</title>
+    <!-- Include DataTables CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.25/css/jquery.dataTables.css">
+    <!-- Include jQuery and DataTables JS -->
+    <script type="text/javascript" charset="utf8" src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.js"></script>
+</head>
+<body>
+    <h1>Fragrance Search</h1>
+    <form method="POST">
+        <input type="text" name="query" placeholder="Search for fragrances...">
+        <button type="submit">Search</button>
+    </form>
+    <table id="fragranceTable" class="display">
+        <thead>
+            <tr>
+                <th>Fragrance Name</th>
+                <th>Quantity (ml)</th>
+                <th>Price (€)</th>
+                <th>Link</th>
+                <th>Website</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in results %}
+            <tr>
+                <td>{{ row[0] }}</td>
+                <td>{{ row[1] }}</td>
+                <td>{{ row[2] }}</td>
+                <td><a href="{{ row[3] }}">{{ row[3] }}</a></td>
+                <td>{{ row[4] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+    $(document).ready(function() {
+        $('#fragranceTable').DataTable({
+            "language": {
+                "search": "Filter records:"
+            }
+        });
+    });
+    </script>
+</body>
+</html>
