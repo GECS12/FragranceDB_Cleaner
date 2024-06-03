@@ -1,4 +1,5 @@
 import sqlite3
+import pandas as pd
 import os
 
 def get_database_path(db_name):
@@ -12,8 +13,9 @@ def create_table(db_name, table_name):
         cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS {table_name} (
             id INTEGER PRIMARY KEY,
+            "Brand" TEXT,
             "Fragrance Name" TEXT,
-            "Quantity (ml)" INTEGER,
+            "Quantity (ml)" TEXT,
             "Price (€)" REAL,
             "Link" TEXT UNIQUE,
             "Website" TEXT,
@@ -21,6 +23,15 @@ def create_table(db_name, table_name):
         )
         ''')
         conn.commit()
+
+def table_exists(db_name, table_name):
+    database_path = get_database_path(db_name)
+    with sqlite3.connect(database_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+        SELECT name FROM sqlite_master WHERE type='table' AND name=?
+        ''', (table_name,))
+        return cursor.fetchone() is not None
 
 def fragrance_exists(db_name, table_name, name, price, link):
     database_path = get_database_path(db_name)
@@ -40,11 +51,25 @@ def insert_or_update_fragrance(db_name, table_name, name, price, quantity, link,
         with sqlite3.connect(database_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f'''
-            INSERT INTO {table_name} ("Fragrance Name", "Price (€)", "Quantity (ml)", "Link", "Website")
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO {table_name} ("Brand", "Fragrance Name", "Quantity (ml)", "Price (€)", "Link", "Website")
+            VALUES (?, ?, ?, ?, ?, ?)
             ''', (name, price, quantity, link, website))
             conn.commit()
             print(f"Inserted fragrance: {name}, price: {price}, quantity: {quantity}, link: {link}, website: {website}")
+
+def insert_multiple_fragrances(db_name, table_name, fragrances):
+    database_path = get_database_path(db_name)
+    if table_exists(db_name, table_name):
+        with sqlite3.connect(database_path) as conn:
+            cursor = conn.cursor()
+            cursor.executemany(f'''
+            INSERT OR IGNORE INTO {table_name} ("Brand", "Fragrance Name", "Quantity (ml)", "Price (€)", "Link", "Website")
+            VALUES (?, ?, ?, ?, ?, ?)
+            ''', fragrances)
+            conn.commit()
+            print(f"Inserted {cursor.rowcount} fragrances into {table_name}")
+    else:
+        print("Table" + str(table_name) + "doesn't exist")
 
 def print_database_contents(db_name, table_name):
     database_path = get_database_path(db_name)
@@ -64,21 +89,14 @@ def drop_table(db_name, table_name):
         conn.commit()
         print(f"Table {table_name} has been dropped.")
 
-
-
-# Step 1: Read the Excel file
-#excel_file_path = r'D:\Drive Folder\FragrancesV2\fragrancePT_Cleaner\fragranceDB\scrapers\fragrances.xlsx'  # Replace with your Excel file path
-#df = pd.read_excel(excel_file_path)
-
-# Step 2: Connect to the SQLite database (or create it)
-#conn = sqlite3.connect('data/fragrance_database.db')  # Replace with your database file path
-
-# Step 3: Insert data into the database
-#table_name = 'PerfumesDigital'  # Replace with your desired table name
-#df.to_sql(table_name, conn, if_exists='replace', index=False)
-
-# Close the connection
-#conn.close()
-
-#print("Data has been successfully inserted into the database.")
-
+def clean_quantity_column(db_name, table_name):
+    database_path = get_database_path(db_name)
+    with sqlite3.connect(database_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f'''
+        UPDATE {table_name}
+        SET "Quantity (ml)" = CAST("Quantity (ml)" AS INTEGER)
+        WHERE "Quantity (ml)" = CAST("Quantity (ml)" AS INTEGER)
+        ''')
+        conn.commit()
+        print(f"Cleaned the Quantity (ml) column in table {table_name}")

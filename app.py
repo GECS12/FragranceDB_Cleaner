@@ -5,7 +5,7 @@ import db_utils
 
 app = Flask(__name__)
 
-DATABASE_NAME = 'fragrance_database'
+DATABASE_NAME = 'PT_fragrances'
 TABLES = ['PerfumesDigital']
 
 
