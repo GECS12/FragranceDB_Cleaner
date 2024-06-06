@@ -13,12 +13,13 @@ import db_utils  # Import your database utility functions
 
 nest_asyncio.apply()
 
+
 # Function to create a session with retry logic
 def requests_retry_session(
-    retries=3,
-    backoff_factor=0.3,
-    status_forcelist=(500, 502, 504),
-    session=None,
+        retries=3,
+        backoff_factor=0.3,
+        status_forcelist=(500, 502, 504),
+        session=None,
 ):
     session = session or requests.Session()
     retry = Retry(
@@ -32,6 +33,7 @@ def requests_retry_session(
     session.mount('http://', adapter)
     session.mount('https://', adapter)
     return session
+
 
 # Function to correct encoding issues
 def fix_encoding(brand):
@@ -64,21 +66,32 @@ def fix_encoding(brand):
         brand = brand.replace(key, value)
     return brand
 
-def get_all_brands(url):
+
+def get_single_brand(url, target_brand):
     response = requests_retry_session().get(url)
     web_content = response.content
     soup = BeautifulSoup(web_content, 'html.parser')
     select_element = soup.find('select', {'name': 'marca'})
-    all_brands = [fix_encoding(option.get('value')) for option in select_element.find_all('option') if option.get('value')]
-    return all_brands
+
+    for option in select_element.find_all('option'):
+        brand = option.get('value')
+        if brand:
+            fixed_brand = fix_encoding(brand)
+            if fixed_brand == target_brand:
+                return fixed_brand
+
+    return None
+
 
 async def fetch(session, url):
     async with session.get(url) as response:
         return await response.read()
 
+
 async def fetch_post(session, url, data):
     async with session.post(url, data=data) as response:
         return await response.read()
+
 
 async def get_soups(url, brand, total_pages, base_url):
     async with aiohttp.ClientSession() as session:
@@ -98,6 +111,7 @@ async def get_soups(url, brand, total_pages, base_url):
             soups.append(page_soup)
     return soups
 
+
 def get_total_pages(soup):
     page_info = soup.find('font', {'face': 'arial', 'size': '1'})
     total_pages = 1
@@ -110,12 +124,14 @@ def get_total_pages(soup):
                 pass
     return total_pages
 
+
 def normalize_text(text):
     # Normalize the text to NFKD (Normalization Form KD)
     normalized_text = unicodedata.normalize('NFKD', text)
     # Encode it to ASCII bytes and then decode it back to UTF-8
     ascii_text = normalized_text.encode('ascii', 'ignore').decode('utf-8')
     return ascii_text
+
 
 def scrape_fragrances(soups, base_url, brand):
     fragrances = []
@@ -168,7 +184,7 @@ def scrape_fragrances(soups, base_url, brand):
                             'Link': link,
                             'Website': "PerfumesDigital"
                         })
-                        #print(fragrance_name + " " + str(price))
+                        print(fragrance_name + " " + str(price))
 
     except Exception as e:
         print(f"Error while scraping brand {brand}: {e}")
@@ -176,31 +192,33 @@ def scrape_fragrances(soups, base_url, brand):
     df = pd.DataFrame(fragrances)
     return df
 
+
 def scraped_to_excel(fragrances):
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f'fragrances_PT_{timestamp}.xlsx'
+    timestamp = datetime.now().strftime('%Y_%m_%d_%H%M')
+    filename = f'fragrancetest_{timestamp}.xlsx'
     fragrances.to_excel(filename, index=False)
     path = r"D:\Drive Folder\FragrancesV2\fragrancePT_Cleaner\fragranceDB\scrapers\PerfumesDigital"
     print(filename + " has been saved in " + path)
+
 
 def scraped_to_db(fragrances):
     db_name = 'PT_fragrances'
     table_name = 'PerfumesDigital'
     db_utils.create_table(db_name, table_name)
-    fragrances_tuples = [tuple(row) for row in fragrances[['Brand', 'Fragrance Name', 'Quantity (ml)', 'Price (€)', 'Link', 'Website']].to_records(index=False)]
+    fragrances_tuples = [tuple(row) for row in fragrances[
+        ['Brand', 'Fragrance Name', 'Quantity (ml)', 'Price (€)', 'Link', 'Website']].to_records(index=False)]
     db_utils.insert_multiple_fragrances(db_name, table_name, fragrances_tuples)
     print("Data has been inserted into the database")
 
-async def main():
+
+async def main(target_brand):
     url = "https://perfumedigital.es/"
     base_url = "https://perfumedigital.es/"
-    brands = get_all_brands(url)
-    print(f"Total number of brands: {len(brands)}")
-    all_fragrances = pd.DataFrame(columns=['Brand', 'Fragrance Name', 'Quantity (ml)', 'Price (€)', 'Link', 'Website'])
-    scraped_brands = 0
-    scraped_brands_list = []
-    missed_brands_list = []
-    for brand in brands:  # You can limit the range for testing
+    brand = get_single_brand(url, target_brand)
+    if brand:
+        print(f"Found brand: {brand}")
+        all_fragrances = pd.DataFrame(
+            columns=['Brand', 'Fragrance Name', 'Quantity (ml)', 'Price (€)', 'Link', 'Website'])
         try:
             response = requests_retry_session().post(f"{url}/index.php", data={'marca': brand})
             initial_soup = BeautifulSoup(response.content.decode('latin1'), 'html.parser')
@@ -209,23 +227,19 @@ async def main():
             fragrance_data = scrape_fragrances(soups, base_url, brand)
             if not fragrance_data.empty:
                 all_fragrances = pd.concat([all_fragrances, fragrance_data], ignore_index=True)
-                scraped_brands += 1
-                scraped_brands_list.append(brand)
+                print(f"Total number of fragrances scraped for brand {brand}: {len(all_fragrances)}")
+
+                # Save scraping to Excel
+                #scraped_to_excel(all_fragrances)
+
             else:
-                missed_brands_list.append(brand)
+                print(f"No fragrances found for brand {brand}.")
         except requests.exceptions.RequestException as e:
             print(f"Error fetching brand {brand}: {e}")
-            missed_brands_list.append(brand)
-    print(f"Total number of brands scraped: {scraped_brands}")
-    print(f"Total number of fragrances scraped: {len(all_fragrances)}")
-    print(f"Total number of brands missed: {len(missed_brands_list)}")
-    print(f"Missed brands: {missed_brands_list}")
+    else:
+        print(f"Brand '{target_brand}' not found.")
 
-    # Save scraping to Excel
-    #scraped_to_excel(all_fragrances)
-
-    # Insert scraped data into the database
-    scraped_to_db(all_fragrances)
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    target_brand = "Giorgio Armani"  # Replace with the brand you want to scrape
+    asyncio.run(main(target_brand))
