@@ -9,7 +9,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from datetime import datetime
-import db_utils  # Import your database utility functions
+import db_utils
 
 nest_asyncio.apply()
 
@@ -222,10 +222,11 @@ async def main():
     print(f"Missed brands: {missed_brands_list}")
 
     # Save scraping to Excel
-    #scraped_to_excel(all_fragrances)
+    #scrape_to_excel(all_fragrances)
 
     # Insert scraped data into the database
-    scraped_to_db(all_fragrances)
+    #scrape_to_db(all_fragrances)
+
 
 if __name__ == '__main__':
     asyncio.run(main())

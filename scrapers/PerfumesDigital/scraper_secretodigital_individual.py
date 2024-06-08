@@ -9,7 +9,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from datetime import datetime
-import db_utils  # Import your database utility functions
+import db_utils
 
 nest_asyncio.apply()
 
