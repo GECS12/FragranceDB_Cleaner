@@ -10,16 +10,13 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from datetime import datetime
 import db_utils
+import aux_functions
+import os
+
 
 nest_asyncio.apply()
 
-# Function to create a session with retry logic
-def requests_retry_session(
-    retries=3,
-    backoff_factor=0.3,
-    status_forcelist=(500, 502, 504),
-    session=None,
-):
+def requests_retry_session(retries=3, backoff_factor=0.3, status_forcelist=(500, 502, 504), session=None):
     session = session or requests.Session()
     retry = Retry(
         total=retries,
@@ -33,32 +30,11 @@ def requests_retry_session(
     session.mount('https://', adapter)
     return session
 
-# Function to correct encoding issues
 def fix_encoding(brand):
     replacements = {
-        'Ã': 'Ç',
-        'Ã': 'Ö',
-        'Ã¤': 'ä',
-        'Ã«': 'ë',
-        'Ã¼': 'ü',
-        'Ã¶': 'ö',
-        'Ã': 'ß',
-        'Ã': 'É',
-        'Ã©': 'é',
-        'Ã ': 'à',
-        'Ã¡': 'á',
-        'Ã¢': 'â',
-        'Ã£': 'ã',
-        'Ã¨': 'è',
-        'Ãª': 'ê',
-        'Ã¹': 'ù',
-        'Ãº': 'ú',
-        'Ã®': 'î',
-        'Ã¯': 'ï',
-        'Ã´': 'ô',
-        'Ã§': 'ç',
-        'Ã±': 'ñ',
-        'Âº': 'º'
+        'Ã': 'Ç', 'Ã': 'Ö', 'Ã¤': 'ä', 'Ã«': 'ë', 'Ã¼': 'ü', 'Ã¶': 'ö', 'Ã': 'ß', 'Ã': 'É', 'Ã©': 'é',
+        'Ã ': 'à', 'Ã¡': 'á', 'Ã¢': 'â', 'Ã£': 'ã', 'Ã¨': 'è', 'Ãª': 'ê', 'Ã¹': 'ù', 'Ãº': 'ú', 'Ã®': 'î',
+        'Ã¯': 'ï', 'Ã´': 'ô', 'Ã§': 'ç', 'Ã±': 'ñ', 'Âº': 'º'
     }
     for key, value in replacements.items():
         brand = brand.replace(key, value)
@@ -71,10 +47,6 @@ def get_all_brands(url):
     select_element = soup.find('select', {'name': 'marca'})
     all_brands = [fix_encoding(option.get('value')) for option in select_element.find_all('option') if option.get('value')]
     return all_brands
-
-async def fetch(session, url):
-    async with session.get(url) as response:
-        return await response.read()
 
 async def fetch_post(session, url, data):
     async with session.post(url, data=data) as response:
@@ -91,7 +63,7 @@ async def get_soups(url, brand, total_pages, base_url):
                 tasks.append(fetch_post(session, url, {'marca': brand}))
             else:
                 next_page_url = f"{base_url}/index.php?PASE={15 * (page - 1)}&marca={brand}&buscado=&ID_CATEGORIA=&ORDEN=&precio1=&precio2=#PRODUCTOS"
-                tasks.append(fetch(session, next_page_url))
+                tasks.append(aux_functions.fetch(session, next_page_url))  # Use fetch from aux_functions
         pages = await asyncio.gather(*tasks)
         for page in pages[1:]:
             page_soup = BeautifulSoup(page.decode('latin1'), 'html.parser')
@@ -111,9 +83,7 @@ def get_total_pages(soup):
     return total_pages
 
 def normalize_text(text):
-    # Normalize the text to NFKD (Normalization Form KD)
     normalized_text = unicodedata.normalize('NFKD', text)
-    # Encode it to ASCII bytes and then decode it back to UTF-8
     ascii_text = normalized_text.encode('ascii', 'ignore').decode('utf-8')
     return ascii_text
 
@@ -144,12 +114,14 @@ def scrape_fragrances(soups, base_url, brand):
                             full_text = a_tag.text.strip()
                             full_text = full_text.encode('latin1').decode('utf-8')
                             full_text = normalize_text(full_text)
-                            quantity_match = re.search(r'(\d+)\s*ML', full_text, re.IGNORECASE)
+                            quantity_match = re.search(r'(\d+(\.\d+)?)\s*ML', full_text, re.IGNORECASE)
                             if quantity_match:
                                 quantity = float(quantity_match.group(1))
+                                if quantity.is_integer():
+                                    quantity = int(quantity)
                                 fragrance_name = full_text.replace(quantity_match.group(0), '').strip().rstrip('@')
                                 if '@' in full_text:
-                                    fragrance_name += " - Tester"
+                                    fragrance_name += "- Tester"
                             else:
                                 continue
 
@@ -161,8 +133,8 @@ def scrape_fragrances(soups, base_url, brand):
 
                     if fragrance_name and quantity and price and link:
                         fragrances.append({
-                            'Brand': brand,
-                            'Fragrance Name': fragrance_name,
+                            'Brand': aux_functions.standardize_names(brand),
+                            'Fragrance Name': aux_functions.standardize_names(fragrance_name),
                             'Quantity (ml)': quantity,
                             'Price (€)': price,
                             'Link': link,
@@ -175,21 +147,6 @@ def scrape_fragrances(soups, base_url, brand):
 
     df = pd.DataFrame(fragrances)
     return df
-
-def scraped_to_excel(fragrances):
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f'fragrances_PT_{timestamp}.xlsx'
-    fragrances.to_excel(filename, index=False)
-    path = r"D:\Drive Folder\FragrancesV2\fragrancePT_Cleaner\fragranceDB\scrapers\PerfumesDigital"
-    print(filename + " has been saved in " + path)
-
-def scraped_to_db(fragrances):
-    db_name = 'PT_fragrances'
-    table_name = 'PerfumesDigital'
-    db_utils.create_table(db_name, table_name)
-    fragrances_tuples = [tuple(row) for row in fragrances[['Brand', 'Fragrance Name', 'Quantity (ml)', 'Price (€)', 'Link', 'Website']].to_records(index=False)]
-    db_utils.insert_multiple_fragrances(db_name, table_name, fragrances_tuples)
-    print("Data has been inserted into the database")
 
 async def main():
     url = "https://perfumedigital.es/"
@@ -221,11 +178,16 @@ async def main():
     print(f"Total number of brands missed: {len(missed_brands_list)}")
     print(f"Missed brands: {missed_brands_list}")
 
+    # Verify and correct the schema if needed
+    #db_utils.verify_and_correct_schema('PT_fragrances', 'PerfumesDigital')
+
     # Save scraping to Excel
-    #scrape_to_excel(all_fragrances)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(script_dir, 'data')
+    aux_functions.scrape_to_excel(all_fragrances, data_dir, 'PerfumesDigital')
 
     # Insert scraped data into the database
-    #scrape_to_db(all_fragrances)
+    aux_functions.scrape_to_db(all_fragrances, 'PT_fragrances', 'PerfumesDigital')
 
 
 if __name__ == '__main__':

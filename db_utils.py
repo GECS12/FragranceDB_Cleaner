@@ -15,14 +15,16 @@ def create_table(db_name, table_name):
             id INTEGER PRIMARY KEY,
             "Brand" TEXT,
             "Fragrance Name" TEXT,
-            "Quantity (ml)" TEXT,
+            "Quantity (ml)" INTEGER,  -- Ensure this is INTEGER
             "Price (€)" REAL,
-            "Link" TEXT UNIQUE,
+            "Link" TEXT,
             "Website" TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         ''')
         conn.commit()
+
+
 
 def table_exists(db_name, table_name):
     database_path = get_database_path(db_name)
@@ -43,9 +45,11 @@ def fragrance_exists(db_name, table_name, name, price, link):
         ''', (name, price, link))
         return cursor.fetchone() is not None
 
-def insert_or_update_fragrance(db_name, table_name, name, price, quantity, link, website):
-    if fragrance_exists(db_name, table_name, name, price, link):
-        print(f"Fragrance with name {name}, price {price}, and link {link} already exists. Skipping insertion.")
+
+def insert_or_update_fragrance(db_name, table_name, brand, name, quantity, price, link, website):
+    if fragrance_exists(db_name, table_name, name, quantity, price, link):
+        print(
+            f"Fragrance with name {name}, quantity {quantity}, price {price}, and link {link} already exists. Skipping insertion.")
     else:
         database_path = get_database_path(db_name)
         with sqlite3.connect(database_path) as conn:
@@ -53,23 +57,29 @@ def insert_or_update_fragrance(db_name, table_name, name, price, quantity, link,
             cursor.execute(f'''
             INSERT INTO {table_name} ("Brand", "Fragrance Name", "Quantity (ml)", "Price (€)", "Link", "Website")
             VALUES (?, ?, ?, ?, ?, ?)
-            ''', (name, price, quantity, link, website))
+            ''', (brand, name, quantity, price, link, website))
             conn.commit()
-            print(f"Inserted fragrance: {name}, price: {price}, quantity: {quantity}, link: {link}, website: {website}")
+            print(
+                f"Inserted fragrance: {brand}, name: {name}, quantity: {quantity}, price: {price}, link: {link}, website: {website}")
+
 
 def insert_multiple_fragrances(db_name, table_name, fragrances):
     database_path = get_database_path(db_name)
     if table_exists(db_name, table_name):
         with sqlite3.connect(database_path) as conn:
             cursor = conn.cursor()
-            cursor.executemany(f'''
-            INSERT OR IGNORE INTO {table_name} ("Brand", "Fragrance Name", "Quantity (ml)", "Price (€)", "Link", "Website")
-            VALUES (?, ?, ?, ?, ?, ?)
-            ''', fragrances)
+            # Explicitly cast Quantity (ml) to INTEGER
+            for fragrance in fragrances:
+                cursor.execute(f'''
+                INSERT OR IGNORE INTO {table_name} ("Brand", "Fragrance Name", "Quantity (ml)", "Price (€)", "Link", "Website")
+                VALUES (?, ?, ?, ?, ?, ?)
+                ''', (fragrance[0], fragrance[1], int(fragrance[2]), fragrance[3], fragrance[4], fragrance[5]))
+                # Debugging: Print the exact SQL statement and data being executed
+                #print(f'INSERT OR IGNORE INTO {table_name} ("Brand", "Fragrance Name", "Quantity (ml)", "Price (€)", "Link", "Website") VALUES ("{fragrance[0]}", "{fragrance[1]}", {int(fragrance[2])}, {fragrance[3]}, "{fragrance[4]}", "{fragrance[5]}")')
             conn.commit()
-            print(f"Inserted {cursor.rowcount} fragrances into {table_name}")
     else:
-        print("Table" + str(table_name) + "doesn't exist")
+        print(f"Table {table_name} doesn't exist")
+
 
 def print_database_contents(db_name, table_name):
     database_path = get_database_path(db_name)
@@ -100,3 +110,52 @@ def clean_quantity_column(db_name, table_name):
         ''')
         conn.commit()
         print(f"Cleaned the Quantity (ml) column in table {table_name}")
+
+
+def verify_and_correct_schema(db_name, table_name):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+
+    # Check the current schema
+    cursor.execute(f"PRAGMA table_info({table_name});")
+    columns = cursor.fetchall()
+    column_types = {column[1]: column[2] for column in columns}
+
+    print(f"Current schema for {table_name}: {column_types}")
+
+    # If the Quantity (ml) column is not INTEGER, alter the table
+    if column_types.get('Quantity (ml)', '').upper() not in ('INTEGER', 'INT'):
+        print(f"Altering {table_name} to change 'Quantity (ml)' to INTEGER")
+
+        # Create a temporary table with the correct schema
+        cursor.execute(f"""
+            CREATE TABLE {table_name}_temp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Brand TEXT,
+                Fragrance_Name TEXT,
+                Quantity_ml INTEGER,
+                Price_EURO REAL,
+                Link TEXT,
+                Website TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # Copy data from the old table to the temporary table
+        cursor.execute(f"""
+            INSERT INTO {table_name}_temp (id, Brand, Fragrance_Name, Quantity_ml, Price_EURO, Link, Website, timestamp)
+            SELECT id, Brand, Fragrance_Name, Quantity_ml, Price_EURO, Link, Website, timestamp
+            FROM {table_name};
+        """)
+
+        # Drop the old table
+        cursor.execute(f"DROP TABLE {table_name};")
+
+        # Rename the temporary table to the original table name
+        cursor.execute(f"ALTER TABLE {table_name}_temp RENAME TO {table_name};")
+
+        print(f"Schema of {table_name} has been corrected.")
+
+    conn.commit()
+    conn.close()
+

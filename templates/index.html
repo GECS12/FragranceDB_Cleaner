@@ -8,12 +8,19 @@
     <!-- Include jQuery and DataTables JS -->
     <script type="text/javascript" charset="utf8" src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.js"></script>
+    <!-- Include jQuery UI CSS and JS for autocomplete -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 </head>
 <body>
     <h1>Fragrance Search</h1>
     <form method="POST">
         <input type="text" name="query" placeholder="Search for fragrances...">
         <button type="submit">Search</button>
+    </form>
+    <form method="POST">
+        <input type="text" id="brand" name="brand" placeholder="Search by brand...">
+        <button type="submit">Search by Brand</button>
     </form>
     <table id="fragranceTable" class="display">
         <thead>
@@ -45,7 +52,21 @@
         $('#fragranceTable').DataTable({
             "language": {
                 "search": "Filter records:"
-            }
+            },
+            "lengthMenu": [20, 50, 100, 200]
+        });
+
+        $("#brand").autocomplete({
+            source: function(request, response) {
+                $.ajax({
+                    url: "/autocomplete",
+                    data: { query: request.term },
+                    success: function(data) {
+                        response(data);
+                    }
+                });
+            },
+            minLength: 3
         });
     });
     </script>
