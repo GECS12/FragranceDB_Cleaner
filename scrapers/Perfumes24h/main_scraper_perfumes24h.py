@@ -39,7 +39,7 @@ def scrape_fragrances(soup, base_url, brand):
             quantity = 0.0
             link = ""
 
-            brand_name = aux_functions.standardize_names(brand)
+            brand_name = aux_functions.standardize_brand_name(brand)
 
             aux_name = product.find('div', class_='tipo_producto').text.strip()
             if aux_name != "":
@@ -158,6 +158,7 @@ async def main():
     }
 
     brands = await get_all_brands(brands_url)
+    #brands = ['Armani', 'Mugler']
     brand_urls = [(brand, special_urls.get(brand, construct_brand_url(brand))) for brand in brands]
 
     unique_urls = set()

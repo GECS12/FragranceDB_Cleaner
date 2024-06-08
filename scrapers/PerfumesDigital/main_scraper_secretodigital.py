@@ -45,6 +45,7 @@ def get_all_brands(url):
     web_content = response.content
     soup = BeautifulSoup(web_content, 'html.parser')
     select_element = soup.find('select', {'name': 'marca'})
+
     all_brands = [fix_encoding(option.get('value')) for option in select_element.find_all('option') if option.get('value')]
     return all_brands
 
@@ -133,13 +134,14 @@ def scrape_fragrances(soups, base_url, brand):
 
                     if fragrance_name and quantity and price and link:
                         fragrances.append({
-                            'Brand': aux_functions.standardize_names(brand),
+                            'Brand': aux_functions.standardize_names(aux_functions.standardize_brand_name(brand)),
                             'Fragrance Name': aux_functions.standardize_names(fragrance_name),
                             'Quantity (ml)': quantity,
                             'Price (€)': price,
                             'Link': link,
                             'Website': "PerfumesDigital"
                         })
+
                         #print(fragrance_name + " " + str(price))
 
     except Exception as e:
@@ -157,7 +159,9 @@ async def main():
     scraped_brands = 0
     scraped_brands_list = []
     missed_brands_list = []
-    for brand in brands:  # You can limit the range for testing
+    for brand in brands:# You can limit the range for testing
+        #print(brand)
+        #print(aux_functions.standardize_names(aux_functions.standardize_brand_name(brand)))
         try:
             response = requests_retry_session().post(f"{url}/index.php", data={'marca': brand})
             initial_soup = BeautifulSoup(response.content.decode('latin1'), 'html.parser')

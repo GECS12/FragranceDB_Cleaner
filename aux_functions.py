@@ -74,3 +74,75 @@ def standardize_names(string):
 
     # Join the words back into a single string
     return ' '.join(standardized_words)
+
+
+#Brand Name Normalizer
+BRAND_NAME_MAPPING = {
+    'Mugler': 'Thierry Mugler',
+    'Armani': 'Giorgio Armani',
+    'Abercrombie': 'Abercrombie & Fitch',
+    'Dior': 'Christian Dior',
+    'Lauren': 'Ralph Lauren',
+    'CK': 'Calvin Klein',
+    'Arden': 'Elizabeth Arden',
+    'Joop': 'Joop!',
+    'Paco': 'Paco Rabanne',
+    'Gianni Versace': 'Versace',
+    'Saint Laurent': 'Yves Saint Laurent',
+    'YSL': 'Yves Saint Laurent',
+    'Hugo': 'Hugo Boss',
+    'Tommy': 'Tommy Hilfiger',
+    'Cavalli': 'Roberto Cavalli',
+    'Mont blanc': 'Montblanc',
+    'Guerlain': 'Guerlain',
+    'Hermes': 'Hermès',
+    'Viktor and Rolf': 'Viktor & Rolf',
+    'Jean Paul': 'Jean Paul Gaultier',
+    'Bulgari': 'Bvlgari',
+    'Vanderbilt': 'Gloria Vanderbilt',
+    'Issey': 'Issey Miyake',
+    'Ferragamo': 'Salvatore Ferragamo',
+    'Nina': 'Nina Ricci',
+    'Rodriguez': 'Narciso Rodriguez',
+    'Boss': 'Hugo Boss',
+    'Balmain': 'Pierre Balmain',
+    'Aramis': 'Aramis',
+    'Estee Lauder': 'Estée Lauder',
+    'Lancome': 'Lancôme',
+    'Lauder': 'Estée Lauder',
+    'Kors': 'Michael Kors',
+    'Couture': 'Juicy Couture',
+    'Annick Goutal': 'Goutal Paris',
+    'Beckham': 'David Beckham',
+    'Zegna': 'Ermenegildo Zegna',
+    'By Kilian': 'Kilian',
+    'Comme des Garcons': 'Comme des Garçons',
+    'Donna Karan': 'DKNY',
+    'Jimmy Choo': 'Jimmy Choo',
+    'Malone': 'Jo Malone',
+    'Varvatos': 'John Varvatos',
+    'Margiela': 'Maison Margiela',
+    'Hilfiger': 'Tommy Hilfiger',
+    'Lapidus': 'Ted Lapidus',
+    'Lagerfeld': 'Karl Lagerfeld',
+    'Biagiotti': 'Laura Biagiotti',
+    'Duck': 'Mandarina Duck',
+    'Gualtier': 'Jean Paul Gaultier',
+    'Giorgio Beverly': 'Giorgio Beverly Hills',
+    'Jessica Parker': 'Sarah Jessica Parker',
+    'Lamborghini': 'Tonino Lamborghini',
+    'Lempicka': 'Lolita Lempicka',
+    'Puig': 'Antonio Puig',
+    'Y.s.laurent': 'Yves Saint Laurent',
+    'Y.S.LAURENT': 'Yves Saint Laurent',
+    'ABERCROMBIE': 'Abercrombie & Fitch',
+    'LAPIDUS': 'Ted Lapidus',
+    'VIKTOR Y ROLPH': 'Viktor & Rolph',
+    'Viktor and Rolph': 'Viktor & Rolph',
+    'Dsquared': 'Dsquared2'
+
+}
+
+def standardize_brand_name(brand_name):
+    # Use the dictionary to map the brand name to the standard name if it exists
+    return BRAND_NAME_MAPPING.get(brand_name, brand_name)

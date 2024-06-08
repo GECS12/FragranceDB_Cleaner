@@ -5,6 +5,7 @@ import os
 def get_database_path(db_name):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', f'{db_name}.db')
 
+
 def create_table(db_name, table_name):
     database_path = get_database_path(db_name)
     os.makedirs(os.path.dirname(database_path), exist_ok=True)  # Create directory if it doesn't exist

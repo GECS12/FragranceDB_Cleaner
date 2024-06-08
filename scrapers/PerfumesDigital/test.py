@@ -45,7 +45,7 @@ def get_all_brands(url):
     web_content = response.content
     soup = BeautifulSoup(web_content, 'html.parser')
     select_element = soup.find('select', {'name': 'marca'})
-    all_brands = [normalize_text(fix_encoding(option.get('value'))) for option in select_element.find_all('option') if option.get('value')]
+    all_brands = [fix_encoding(option.get('value')) for option in select_element.find_all('option') if option.get('value')]
     return all_brands
 
 async def fetch_post(session, url, data):
@@ -132,8 +132,9 @@ def scrape_fragrances(soups, base_url, brand):
                             price = float(price_text[-2].replace('€', ''))
 
                     if fragrance_name and quantity and price and link:
+                        standardized_brand = aux_functions.standardize_brand_name(brand)
                         fragrances.append({
-                            'Brand': aux_functions.standardize_names(brand),
+                            'Brand': aux_functions.standardize_names(standardized_brand),
                             'Fragrance Name': aux_functions.standardize_names(fragrance_name),
                             'Quantity (ml)': quantity,
                             'Price (€)': price,
@@ -157,7 +158,7 @@ async def main():
     scraped_brands = 0
     scraped_brands_list = []
     missed_brands_list = []
-    for brand in brands[0:7]:  # You can limit the range for testing
+    for brand in brands:  # You can limit the range for testing
         try:
             response = requests_retry_session().post(f"{url}/index.php", data={'marca': brand})
             initial_soup = BeautifulSoup(response.content.decode('latin1'), 'html.parser')
@@ -184,10 +185,10 @@ async def main():
     # Save scraping to Excel
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(script_dir, 'data')
-    aux_functions.scrape_to_excel(all_fragrances, data_dir, 'PerfumesDigital')
+    #aux_functions.scrape_to_excel(all_fragrances, data_dir, 'PerfumesDigital')
 
     # Insert scraped data into the database
-    aux_functions.scrape_to_db(all_fragrances, 'test_PT_fragrances', 'PerfumesDigital')
+    aux_functions.scrape_to_db(all_fragrances, 'Test_BrandDict', 'PerfumesDigital')
 
 
 if __name__ == '__main__':
