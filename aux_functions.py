@@ -117,7 +117,7 @@ BRAND_NAME_MAPPING = {
     'Zegna': 'Ermenegildo Zegna',
     'By Kilian': 'Kilian',
     'Comme des Garcons': 'Comme des Garçons',
-    'Donna Karan': 'DKNY',
+    'Donna Karan': 'Dkny',
     'Jimmy Choo': 'Jimmy Choo',
     'Malone': 'Jo Malone',
     'Varvatos': 'John Varvatos',
@@ -137,10 +137,12 @@ BRAND_NAME_MAPPING = {
     'Y.S.LAURENT': 'Yves Saint Laurent',
     'ABERCROMBIE': 'Abercrombie & Fitch',
     'LAPIDUS': 'Ted Lapidus',
-    'VIKTOR Y ROLPH': 'Viktor & Rolph',
-    'Viktor and Rolph': 'Viktor & Rolph',
-    'Dsquared': 'Dsquared2'
-
+    'VIKTOR Y ROLPH': 'Viktor & Rolf',
+    'Viktor and Rolph': 'Viktor & Rolf',
+    'Dsquared': 'Dsquared2',
+    'Jean-paul gaultier': 'Jean Paul Gaultier',
+    'Dolce gabbana': 'Dolce & Gabbana',
+    'P.gres': 'Grès'
 }
 
 def standardize_brand_name(brand_name):
