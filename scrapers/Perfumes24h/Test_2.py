@@ -15,8 +15,10 @@ from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
 import re
 import subprocess
-import db_utils
 import nest_asyncio
+import db_utils
+import subprocess
+
 
 nest_asyncio.apply()
 
@@ -71,20 +73,14 @@ def extract_quantity(fragrance_name):
                 return quantity
             except ValueError:
                 return 0  # Return 0 if conversion fails
-
-    # Special case: check if the last part is a number
-    try:
-        quantity = int(parts[-1])
-        return quantity
-    except ValueError:
-        return 0  # Return 0 if no valid quantity found
+    return 0
 
 
 # Function to clean fragrance name
 def clean_fragrance_name(fragrance_name, brand_name):
     # Special cases for brand names
     special_cases = {
-        "Angel schlesser": ["Angel Schelesser"],
+        "Angel Schlesser": ["Angel Schelesser", "Angel Schlesser"],
         "Bulgari": ["Bvlgari"],
         "Dolce gabbana": ["Dolce & Gabbana"],
         "Emporio Armani": ["Giorgio Armani"],
@@ -120,6 +116,34 @@ def clean_fragrance_name(fragrance_name, brand_name):
     return cleaned_name
 
 
+# Function to extract quantity from fragrance page
+async def extract_quantity_from_page(link):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(link) as response:
+            page_content = await response.text()
+            soup = BeautifulSoup(page_content, 'html.parser')
+
+            quantities = []
+            prices = []
+
+            try:
+                quantity_elements = soup.select("div.swatch-option.text")
+                for quantity_element in quantity_elements:
+                    quantity_text = quantity_element.get("data-option-label", "")
+                    quantity = int(''.join(filter(str.isdigit, quantity_text)))
+                    quantities.append(quantity)
+
+                price_elements = soup.select("span.price")
+                for price_element in price_elements:
+                    price_text = price_element.text.strip().replace('€', '').replace(',', '.').strip()
+                    prices.append(float(price_text))
+
+            except Exception as e:
+                print(f"Could not extract quantity or price from page {link}: {e}")
+
+            return list(zip(quantities, prices))
+
+
 # Function to scrape fragrance data
 async def scrape_fragrance_data(brand_url_tuple):
     brand_name, brand_url = brand_url_tuple
@@ -131,6 +155,7 @@ async def scrape_fragrance_data(brand_url_tuple):
             EC.presence_of_element_located((By.CSS_SELECTOR, "li.item.product.product-item")))
     except Exception as e:
         print(f"No data found for {brand_name}, moving to next brand.")
+        print(brand_url)
         return []
 
     # Get page source and parse with BeautifulSoup
@@ -154,9 +179,6 @@ async def scrape_fragrance_data(brand_url_tuple):
         # Extract quantity
         quantity = extract_quantity(fragrance_name)
 
-        if quantity == 0:
-            continue  # Ignore fragrance without quantity in name
-
         # Clean fragrance name
         cleaned_fragrance_name = clean_fragrance_name(fragrance_name, brand_name)
 
@@ -172,15 +194,27 @@ async def scrape_fragrance_data(brand_url_tuple):
         # Extract first link
         link = fragrance_name_tag['href']
 
-        # Create data entry
-        data.append({
-            "Brand": aux_functions.standardize_names(aux_functions.standardize_brand_name(brand_name)),
-            "Fragrance Name": aux_functions.standardize_names(cleaned_fragrance_name),
-            "Quantity (ml)": quantity,
-            "Price (€)": price,
-            "Link": link,
-            "Website": 'MassPerfumarias'
-        })
+        if quantity == 0:
+            quantities_prices = await extract_quantity_from_page(link)
+            for quantity, price in quantities_prices:
+                data.append({
+                    "Brand": aux_functions.standardize_names(aux_functions.standardize_brand_name(brand_name)),
+                    "Fragrance Name": aux_functions.standardize_names(cleaned_fragrance_name),
+                    "Quantity (ml)": quantity,
+                    "Price (€)": price,
+                    "Link": link,
+                    "Website": 'MassPerfumarias'
+                })
+        else:
+            # Create data entry
+            data.append({
+                "Brand": aux_functions.standardize_names(aux_functions.standardize_brand_name(brand_name)),
+                "Fragrance Name": aux_functions.standardize_names(cleaned_fragrance_name),
+                "Quantity (ml)": quantity,
+                "Price (€)": price,
+                "Link": link,
+                "Website": 'MassPerfumarias'
+            })
 
     return data
 
