@@ -6,7 +6,7 @@ import db_utils
 app = Flask(__name__)
 
 DATABASE_NAME = 'PT_fragrances'
-TABLES = ['PerfumesDigital', 'Perfumes24h']
+TABLES = ['PerfumesDigital', 'Perfumes24h', 'MassPerfumarias']
 
 def get_database_path():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', f'{DATABASE_NAME}.db')
